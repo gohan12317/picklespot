@@ -1,26 +1,36 @@
 'use client';
 
+import Image from 'next/image';
+import Link from 'next/link';
 import { Search, MapPin, Menu } from 'lucide-react';
 import { Input } from './ui/input';
 
 export function Header() {
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-6 py-4">
+      <div className="w-full px-2 sm:px-3 md:px-4 py-4">
         <div className="flex items-center justify-between gap-6">
-          {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl font-bold">P</span>
-            </div>
-            <div>
-              <h1 className="font-bold text-gray-900">PickleSpot</h1>
-              <p className="text-xs text-gray-500">Find courts near you</p>
-            </div>
+          <div className="flex items-center gap-3 shrink-0 min-w-0">
+            <Link
+              href="/"
+              className="flex items-center min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-sm"
+            >
+              <Image
+                src="/logo.png"
+                alt="PickleSpot"
+                width={500}
+                height={200}
+                className="h-8 sm:h-10 w-auto max-w-[140px] sm:max-w-[180px]"
+                priority
+              />
+            </Link>
+            <p className="hidden md:block text-xs text-gray-500 leading-snug max-w-[9rem] border-l border-gray-200 pl-3">
+              Find courts near you
+            </p>
           </div>
 
           {/* Search Bar */}
-          <div className="flex-1 max-w-2xl relative">
+          <div className="flex-1 min-w-0 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
               type="text"
