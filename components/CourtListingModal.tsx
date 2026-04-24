@@ -1,0 +1,589 @@
+"use client";
+
+import type { Dispatch, SetStateAction } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  ExternalLink,
+  Layers,
+  Mail,
+  MapPin,
+  MapPinned,
+  Maximize2,
+  Phone,
+  Share2,
+  Star,
+  X,
+} from "lucide-react";
+
+import type { CourtListing } from "@/data/courtListings";
+import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { Badge } from "./ui/badge";
+
+function mapsSearchUrl(court: CourtListing): string {
+  const direct = court.mapsUrl?.trim();
+  if (direct) return direct;
+  const q = encodeURIComponent(`${court.courtName} ${court.fullAddress}`.trim() || court.courtName);
+  return `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
+
+function telHref(phone: string): string {
+  const cleaned = phone.replace(/[^\d+]/g, "");
+  return cleaned ? `tel:${cleaned}` : `tel:${phone}`;
+}
+
+type GalleryLightboxProps = {
+  images: string[];
+  courtName: string;
+  slide: number;
+  onSlideChange: Dispatch<SetStateAction<number>>;
+  onClose: () => void;
+};
+
+function GalleryLightbox({ images, courtName, slide, onSlideChange, onClose }: GalleryLightboxProps) {
+  const n = images.length;
+  const pct = n > 0 ? 100 / n : 100;
+  const go = useCallback(
+    (dir: -1 | 1) => {
+      if (n <= 1) return;
+      onSlideChange((s) => (s + dir + n) % n);
+    },
+    [n, onSlideChange],
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (n <= 1) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        go(-1);
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        go(1);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [n, onClose, go]);
+
+  return (
+    <div className="fixed inset-0 z-[70] flex flex-col bg-zinc-950/97 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Photo gallery">
+      <button
+        type="button"
+        className="absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/20 transition hover:bg-white/20"
+        onClick={onClose}
+        aria-label="Close gallery"
+      >
+        <X className="h-5 w-5" />
+      </button>
+
+      <div className="flex flex-1 flex-col items-center justify-center px-2 pt-14 pb-4 sm:px-6">
+        <p className="mb-3 max-w-lg truncate px-4 text-center text-sm font-medium text-white/90">{courtName}</p>
+        <div className="relative aspect-[4/3] w-full max-w-4xl overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/10 sm:aspect-video">
+          <div
+            className="flex h-full w-full transition-transform duration-500 ease-out motion-reduce:transition-none"
+            style={{
+              width: `${n * 100}%`,
+              transform: `translateX(-${slide * pct}%)`,
+            }}
+          >
+            {images.map((src, i) => (
+              <div key={`lb-${src}-${i}`} className="relative h-full shrink-0 bg-black" style={{ width: `${pct}%` }}>
+                <ImageWithFallback
+                  src={src}
+                  alt={i === slide ? `${courtName} — photo ${i + 1} of ${n}` : ""}
+                  className="object-contain"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {n > 1 ? (
+          <div className="mt-4 flex w-full max-w-4xl items-center justify-between gap-4 px-2">
+            <button
+              type="button"
+              onClick={() => go(-1)}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/15 transition hover:bg-white/20"
+              aria-label="Previous photo"
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+            <span className="text-sm tabular-nums text-white/70">
+              {slide + 1} <span className="text-white/40">/</span> {n}
+            </span>
+            <button
+              type="button"
+              onClick={() => go(1)}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/15 transition hover:bg-white/20"
+              aria-label="Next photo"
+            >
+              <ChevronRight className="h-6 w-6" />
+            </button>
+          </div>
+        ) : null}
+
+        {n > 1 ? (
+          <div className="mt-4 flex max-w-full gap-2 overflow-x-auto px-4 pb-2 pb-[env(safe-area-inset-bottom)] [scrollbar-width:thin]">
+            {images.map((src, i) => (
+              <button
+                key={`thumb-${i}`}
+                type="button"
+                onClick={() => onSlideChange(i)}
+                aria-label={`Show photo ${i + 1}`}
+                aria-current={i === slide ? "true" : undefined}
+                className={`relative h-14 w-20 shrink-0 overflow-hidden rounded-lg ring-2 transition ${
+                  i === slide ? "ring-white" : "ring-transparent opacity-60 hover:opacity-100"
+                }`}
+              >
+                <ImageWithFallback src={src} alt="" className="object-cover" />
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+type ModalGalleryProps = {
+  images: string[];
+  courtName: string;
+  badges: React.ReactNode;
+  reducedMotion: boolean;
+  slide: number;
+  onSlideChange: Dispatch<SetStateAction<number>>;
+  onOpenLightbox: () => void;
+};
+
+function ModalGallery({
+  images,
+  courtName,
+  badges,
+  reducedMotion,
+  slide,
+  onSlideChange,
+  onOpenLightbox,
+}: ModalGalleryProps) {
+  const n = images.length;
+  const pct = n > 0 ? 100 / n : 100;
+  const go = useCallback(
+    (dir: -1 | 1) => {
+      if (n <= 1) return;
+      onSlideChange((s) => (s + dir + n) % n);
+    },
+    [n, onSlideChange],
+  );
+
+  const labelId = useId();
+
+  return (
+    <div
+      className="relative isolate flex min-h-0 min-w-0 flex-1 flex-col bg-gradient-to-b from-gray-900 to-gray-950"
+      role="region"
+      aria-roledescription="carousel"
+      aria-labelledby={labelId}
+    >
+      <p id={labelId} className="sr-only">
+        Photo gallery for {courtName}, {n} images
+      </p>
+
+      <div className="relative w-full flex-1 basis-0 min-h-[168px] overflow-hidden sm:min-h-[200px]">
+        <div
+          className={`group relative flex h-full w-full ${reducedMotion ? "" : "transition-transform duration-500 ease-out motion-reduce:transition-none"}`}
+          style={{
+            width: `${n * 100}%`,
+            transform: `translateX(-${slide * pct}%)`,
+          }}
+        >
+          {images.map((src, i) => (
+            <div
+              key={`${src}-${i}`}
+              className="relative h-full shrink-0 overflow-hidden"
+              style={{ width: `${pct}%` }}
+              aria-hidden={i !== slide}
+            >
+              <ImageWithFallback
+                src={src}
+                alt={i === slide ? `${courtName} — photo ${i + 1} of ${n}` : ""}
+                className="object-cover transition duration-700 group-hover:scale-[1.02]"
+              />
+            </div>
+          ))}
+        </div>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/10" />
+        <button
+          type="button"
+          onClick={onOpenLightbox}
+          className="pointer-events-auto absolute bottom-3 right-3 z-[2] flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 text-xs font-semibold text-white shadow-lg ring-1 ring-white/15 backdrop-blur-md transition hover:bg-black/65 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+          aria-label={`View all ${n} photos full screen`}
+        >
+          <Maximize2 className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
+          Photos
+        </button>
+
+        <div className="pointer-events-none absolute bottom-3 left-3 flex max-w-[min(100%,14rem)] flex-wrap items-end gap-2">{badges}</div>
+
+        {n > 1 ? (
+          <>
+            <div className="pointer-events-none absolute left-3 top-1/2 z-[3] flex -translate-y-1/2">
+              <button
+                type="button"
+                onClick={() => go(-1)}
+                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white shadow-md backdrop-blur-md transition hover:bg-black/60 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                aria-label="Previous photo"
+              >
+                <ChevronLeft className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+              </button>
+            </div>
+            <div className="pointer-events-none absolute right-3 top-1/2 z-[3] flex -translate-y-1/2">
+              <button
+                type="button"
+                onClick={() => go(1)}
+                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white shadow-md backdrop-blur-md transition hover:bg-black/60 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                aria-label="Next photo"
+              >
+                <ChevronRight className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+              </button>
+            </div>
+            <div className="pointer-events-none absolute right-3 top-3 rounded-lg bg-black/45 px-2 py-1 text-[11px] font-semibold tabular-nums text-white/95 ring-1 ring-white/10 backdrop-blur-sm">
+              {slide + 1} <span className="text-white/50">/</span> {n}
+            </div>
+          </>
+        ) : null}
+      </div>
+
+    </div>
+  );
+}
+
+type CourtListingModalProps = {
+  court: CourtListing | null;
+  onClose: () => void;
+};
+
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mq.matches);
+    const fn = () => setReduced(mq.matches);
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
+  return reduced;
+}
+
+export function CourtListingModal({ court, onClose }: CourtListingModalProps) {
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [slide, setSlide] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
+
+  const images = court?.images?.length ? court.images : court ? [court.image] : [];
+
+  useEffect(() => {
+    setSlide(0);
+    setLightboxOpen(false);
+  }, [court?.id]);
+
+  useEffect(() => {
+    if (!court) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const n = images.length;
+    const onKey = (e: KeyboardEvent) => {
+      if (lightboxOpen) {
+        return;
+      }
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (n <= 1) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setSlide((s) => (s - 1 + n) % n);
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setSlide((s) => (s + 1) % n);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    panelRef.current?.focus();
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [court, onClose, images.length, lightboxOpen]);
+
+  if (!court) return null;
+
+  const showRating = court.rating != null && !Number.isNaN(court.rating);
+  const mapsHref = mapsSearchUrl(court);
+  const hasStreet = Boolean(court.street?.trim());
+  const cityLine = [court.city, court.province?.trim()].filter(Boolean).join(" · ");
+
+  const share = async () => {
+    const text = [court.courtName, court.fullAddress, mapsHref].filter(Boolean).join("\n");
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: court.courtName, text });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      }
+    } catch {
+      /* user cancelled share */
+    }
+  };
+
+  const badgeCluster = (
+    <>
+      {court.cost != null ? (
+        <Badge
+          className={
+            court.cost === "free"
+              ? "pointer-events-auto border-transparent bg-emerald-500/95 px-2.5 py-1 text-[11px] text-white shadow-sm"
+              : "pointer-events-auto border-transparent bg-blue-600/95 px-2.5 py-1 text-[11px] text-white shadow-sm"
+          }
+        >
+          {court.cost === "free" ? "Free" : "Paid"}
+        </Badge>
+      ) : court.categoryBadge ? (
+        <Badge className="pointer-events-auto max-w-[12rem] truncate border-transparent bg-white/15 px-2.5 py-1 text-[11px] text-white ring-1 ring-white/20 backdrop-blur-sm">
+          {court.categoryBadge}
+        </Badge>
+      ) : null}
+      <Badge className="pointer-events-auto border-transparent bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-gray-900 shadow-sm">
+        {court.distance}
+      </Badge>
+    </>
+  );
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-3" role="presentation">
+        <button
+          type="button"
+          className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px] transition-opacity"
+          aria-label="Close"
+          onClick={onClose}
+        />
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          tabIndex={-1}
+          className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-[1.5rem] bg-slate-100 shadow-[0_25px_80px_-16px_rgba(15,23,42,0.35)] ring-1 ring-slate-200/80 sm:max-h-[min(90svh,820px)] sm:rounded-[1.5rem]"
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-md ring-1 ring-black/[0.06] transition hover:bg-white active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 sm:right-4"
+            aria-label="Close details"
+          >
+            <X className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+          </button>
+
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100">
+            <ModalGallery
+              images={images}
+              courtName={court.courtName}
+              badges={badgeCluster}
+              reducedMotion={reducedMotion}
+              slide={slide}
+              onSlideChange={setSlide}
+              onOpenLightbox={() => setLightboxOpen(true)}
+            />
+
+            <div className="shrink-0 overflow-hidden bg-slate-100 px-3 pb-3 pt-2 sm:px-4 sm:pb-3 sm:pt-2.5">
+              <div className="mt-1.5 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 shadow-md ring-1 ring-slate-900/[0.04] sm:mt-2 sm:p-4">
+                <div className="border-b border-slate-100/90 pb-3 pt-1">
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Court</p>
+                  <h2
+                    id={titleId}
+                    className="line-clamp-2 pr-14 text-xl font-extrabold leading-[1.2] tracking-tight text-slate-900 sm:pr-16 sm:text-2xl sm:leading-[1.15]"
+                  >
+                    {court.courtName}
+                  </h2>
+                  {showRating ? (
+                    <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-950 ring-1 ring-amber-200/60">
+                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-600" strokeWidth={1.75} aria-hidden />
+                      <span className="font-semibold tabular-nums">{court.rating}</span>
+                      {court.reviews != null ? <span className="text-amber-800/80">· {court.reviews} reviews</span> : null}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="flex gap-3 border-b border-slate-100/90 py-3.5">
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100/80"
+                    aria-hidden
+                  >
+                    <MapPin className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  </div>
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    {hasStreet ? (
+                      <p className="line-clamp-2 text-sm font-semibold leading-snug text-slate-800">{court.street}</p>
+                    ) : null}
+                    {cityLine ? <p className="mt-1 text-xs font-medium text-slate-500">{cityLine}</p> : null}
+                    <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-slate-600">
+                      {court.fullAddress}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 border-b border-slate-100/90 py-3.5">
+                  <div className="flex min-w-0 gap-2.5">
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 ring-1 ring-slate-200/80"
+                      aria-hidden
+                    >
+                      <Clock className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Hours</p>
+                      <p className="mt-1 line-clamp-3 text-sm font-medium leading-snug text-slate-900">
+                        {court.openingHours}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex min-w-0 gap-2.5 border-l border-slate-100 pl-3 sm:pl-3.5">
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 ring-1 ring-slate-200/80"
+                      aria-hidden
+                    >
+                      <Layers className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Courts</p>
+                      <p className="mt-1 text-2xl font-bold tabular-nums leading-none tracking-tight text-slate-900 sm:text-[1.65rem]">
+                        {court.courts}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-xs font-medium leading-snug text-slate-600">{court.courtType}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid shrink-0 grid-cols-2 gap-2 pt-3">
+                  {court.phone?.trim() ? (
+                    <a
+                      href={telHref(court.phone)}
+                      className="flex min-h-[4.5rem] flex-col gap-1.5 rounded-xl border border-slate-200/90 bg-slate-50/80 p-2.5 text-slate-900 transition hover:border-blue-200/80 hover:bg-blue-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/35 active:scale-[0.99]"
+                    >
+                      <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-blue-600 shadow-sm ring-1 ring-slate-200/80">
+                          <Phone className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                        </span>
+                        Phone
+                      </span>
+                      <span className="min-w-0 break-words pl-0.5 font-mono text-sm font-medium leading-snug text-slate-900">{court.phone}</span>
+                    </a>
+                  ) : (
+                    <div className="flex min-h-[4.5rem] flex-col gap-1.5 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-2.5 text-sm text-slate-400">
+                      <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white ring-1 ring-slate-200/80">
+                          <Phone className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                        </span>
+                        Phone
+                      </span>
+                      <span className="pl-0.5">None on file</span>
+                    </div>
+                  )}
+                  {court.email?.trim() ? (
+                    <a
+                      href={`mailto:${court.email}`}
+                      className="flex min-h-[4.5rem] flex-col gap-1.5 rounded-xl border border-slate-200/90 bg-slate-50/80 p-2.5 text-slate-900 transition hover:border-blue-200/80 hover:bg-blue-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/35 active:scale-[0.99]"
+                    >
+                      <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-blue-600 shadow-sm ring-1 ring-slate-200/80">
+                          <Mail className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                        </span>
+                        Email
+                      </span>
+                      <span className="min-w-0 break-words pl-0.5 text-left text-sm font-medium leading-snug text-slate-900">{court.email}</span>
+                    </a>
+                  ) : (
+                    <div className="flex min-h-[4.5rem] flex-col gap-1.5 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-2.5 text-sm text-slate-400">
+                      <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white ring-1 ring-slate-200/80">
+                          <Mail className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                        </span>
+                        Email
+                      </span>
+                      <span className="pl-0.5">None on file</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="shrink-0 space-y-2.5 border-t border-slate-200/70 bg-slate-100 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
+              <a
+                href={mapsHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex min-h-[3rem] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md shadow-blue-600/25 transition hover:from-blue-500 hover:to-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 active:scale-[0.99]"
+              >
+                <MapPinned className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} aria-hidden />
+                Get directions
+                <ExternalLink className="h-4 w-4 opacity-90" strokeWidth={1.75} aria-hidden />
+              </a>
+
+              {court.bookCourtUrl ? (
+                <a
+                  href={court.bookCourtUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex min-h-[3rem] w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/60 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900 shadow-sm transition hover:bg-emerald-100/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 active:scale-[0.99]"
+                >
+                  Book
+                  <ExternalLink className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                </a>
+              ) : null}
+
+              <div className="flex gap-2 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => void share()}
+                  className="inline-flex min-h-[2.75rem] flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200/90 bg-white py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 active:scale-[0.99]"
+                >
+                  <Share2 className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                  Share
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="min-h-[2.75rem] rounded-xl border border-transparent px-4 text-sm font-semibold text-slate-600 transition hover:bg-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 active:scale-[0.99]"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {lightboxOpen ? (
+        <GalleryLightbox
+          images={images}
+          courtName={court.courtName}
+          slide={slide}
+          onSlideChange={setSlide}
+          onClose={() => setLightboxOpen(false)}
+        />
+      ) : null}
+    </>
+  );
+}

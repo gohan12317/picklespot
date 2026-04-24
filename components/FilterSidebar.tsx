@@ -85,7 +85,7 @@ export function FilterSidebar({ onClose, variant = "sidebar" }: FilterSidebarPro
   const shellClassName =
     variant === "sheet"
       ? "flex h-full min-h-0 w-full flex-col overflow-hidden bg-white"
-      : "sticky top-24 flex h-[calc(100dvh-9rem)] w-full shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white lg:w-80 lg:self-start";
+      : "sticky top-24 flex h-[calc(90dvh-9rem)] w-full shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white lg:w-80";
 
   return (
     <aside className={shellClassName}>

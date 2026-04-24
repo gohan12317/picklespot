@@ -4,27 +4,37 @@ export type CourtType = "indoor" | "outdoor" | "both";
 
 export type CourtListing = {
   id: string;
-  name: string;
+  courtName: string;
+  street: string | null;
+  city: string;
+  province: string | null;
+  fullAddress: string;
+  /** Raw hours line from directory (e.g. "6:00 AM - 12:00 PM") */
+  openingHours: string;
+  courtType: string;
+  /** Line used on list cards */
   address: string;
-  /** Shown on the image (left badge), e.g. city */
+  /** Badge on card, usually city */
   distance: string;
   courts: number;
   type: CourtType;
-  /** Full directory court type string for the outline chip */
   typeLabel: string;
+  /** Card copy, e.g. "Open …" */
   hours: string;
   image: string;
-  /** phone | email | maps | book — icons on the card */
+  images: string[];
   amenities: string[];
   rating?: number;
   reviews?: number;
   cost?: "free" | "paid" | null;
-  /** Short label on the image (right badge) when `cost` is not set */
   categoryBadge?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  mapsUrl?: string | null;
+  bookCourtUrl?: string | null;
 };
 
 type LokalpikolDirectory = {
-  source: string;
   scraped_at: string;
   expected_total_from_directory: number;
   total_listings: number;
@@ -41,19 +51,37 @@ type LokalpikolDirectory = {
     email: string | null;
     phone: string | null;
     book_court_url: string | null;
+    street?: string | null;
+    province?: string | null;
+    full_address?: string | null;
+    court_type?: string | null;
   }>;
 };
 
 const directory = raw as LokalpikolDirectory;
 
-const DEFAULT_COURT_IMAGE =
-  "https://images.unsplash.com/photo-1693142517898-2f986215e412?auto=format&fit=crop&w=1080&q=80";
+const IMG = (id: string) =>
+  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1200&q=80`;
 
-export const directoryMeta = {
-  source: directory.source,
-  scrapedAt: directory.scraped_at,
-  totalListings: directory.total_listings,
-} as const;
+const COURT_GALLERY_POOL = [
+  IMG("photo-1693142517898-2f986215e412"),
+  IMG("photo-1626224583764-f87db24fe4b6"),
+  IMG("photo-1554068864-3887f870e9a0"),
+  IMG("photo-1521412644187-c49fa049e84d"),
+  IMG("photo-1595435934249-043344853a57"),
+  IMG("photo-1616530940355-351fabd9524b"),
+] as const;
+
+function galleryForCourtId(id: string): string[] {
+  const pool = [...COURT_GALLERY_POOL];
+  let h = 0;
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  const r = h % pool.length;
+  const rotated = [...pool.slice(r), ...pool.slice(0, r)];
+  return rotated.slice(0, 5);
+}
 
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
@@ -84,19 +112,47 @@ function listingFromCourt(
   if (c.google_maps_link) amenities.push("maps");
   if (c.book_court_url) amenities.push("book");
 
+  const images = galleryForCourtId(c.id);
+
+  const street = c.street?.trim() || null;
+  const city = (c.city || "").trim() || "—";
+  const province = c.province?.trim() || null;
+  const addr = (c.address || "").trim();
+  const loc = (c.location || "").trim();
+  const fullAddress =
+    c.full_address?.trim() ||
+    loc ||
+    [street || addr || null, city !== "—" ? city : null, province].filter(Boolean).join(", ") ||
+    addr ||
+    "—";
+
+  const courtType = (c.court_type || c.court_details || "—").trim();
+  const openingHours = (c.hours_display || "—").trim();
+
   return {
     id: c.id,
-    name: c.court_name,
+    courtName: c.court_name,
+    street,
+    city,
+    province,
+    fullAddress,
+    openingHours,
+    courtType,
     address: (c.address || c.location || "").trim(),
     distance: (c.city || "Philippines").trim(),
     courts: Math.max(1, c.number_of_courts || 1),
     type,
     typeLabel,
     hours: c.hours_display ? `Open ${c.hours_display}` : "Hours not listed",
-    image: DEFAULT_COURT_IMAGE,
+    image: images[0]!,
+    images,
     amenities,
     cost: null,
     categoryBadge: truncate(c.court_details || "Outdoor", 26),
+    phone: c.phone,
+    email: c.email,
+    mapsUrl: c.google_maps_link,
+    bookCourtUrl: c.book_court_url,
   };
 }
 

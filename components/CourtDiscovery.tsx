@@ -4,16 +4,37 @@ import { useEffect, useState } from "react";
 import { Filter, LayoutGrid, List, Map, SlidersHorizontal } from "lucide-react";
 
 import type { CourtListing } from "@/data/courtListings";
-import { courtListings, directoryMeta } from "@/data/courtListings";
+import { courtListings } from "@/data/courtListings";
+import { CourtListingModal } from "./CourtListingModal";
 import { FilterSidebar } from "./FilterSidebar";
 import { LocationCard } from "./LocationCard";
 
 type ViewMode = "grid" | "list" | "map";
 
 function listingCardProps(court: CourtListing) {
-  const { id, type, ...props } = court;
+  const {
+    id,
+    type,
+    images: _gallery,
+    street: _s,
+    city: _c,
+    province: _p,
+    fullAddress: _f,
+    openingHours: _oh,
+    courtType: _t,
+    mapsUrl: _m,
+    ...props
+  } = court;
   void id;
   void type;
+  void _gallery;
+  void _s;
+  void _c;
+  void _p;
+  void _f;
+  void _oh;
+  void _t;
+  void _m;
   return props;
 }
 
@@ -24,6 +45,7 @@ export function CourtDiscovery() {
   const [desktopFiltersVisible, setDesktopFiltersVisible] = useState(true);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [isLg, setIsLg] = useState<boolean | null>(null);
+  const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia(LG_QUERY);
@@ -60,29 +82,18 @@ export function CourtDiscovery() {
   const showDesktopSidebar = isLg === true && desktopFiltersVisible;
   const showMobileSheet = isLg !== true && mobileSheetOpen;
 
+  const selectedCourt = selectedListingId
+    ? (courtListings.find((c) => c.id === selectedListingId) ?? null)
+    : null;
+
   return (
     <>
       <div className="border-b border-gray-200 bg-white">
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-medium text-gray-900">
-                {courtListings.length} courts in directory
-              </p>
-              <p className="text-sm text-gray-500">
-                Data from{" "}
-                <a
-                  href={directoryMeta.source}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 underline-offset-2 hover:underline"
-                >
-                  directory.lokalpikol.com
-                </a>
-                {directoryMeta.scrapedAt
-                  ? ` · scraped ${new Date(directoryMeta.scrapedAt).toLocaleDateString()}`
-                  : null}
-              </p>
+              <p className="font-medium text-gray-900">{courtListings.length} courts</p>
+              <p className="text-sm text-gray-500">Filter by city, court type, and more.</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
@@ -172,7 +183,7 @@ export function CourtDiscovery() {
       </div>
 
       <div className="mx-auto max-w-7xl px-6 py-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="flex flex-col gap-6 lg:flex-row">
           {showDesktopSidebar ? (
             <div className="hidden w-full shrink-0 lg:block lg:w-80">
               <FilterSidebar
@@ -230,7 +241,11 @@ export function CourtDiscovery() {
             {viewMode === "grid" ? (
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
                 {courtListings.map((court) => (
-                  <LocationCard key={court.id} {...listingCardProps(court)} />
+                  <LocationCard
+                    key={court.id}
+                    {...listingCardProps(court)}
+                    onOpen={() => setSelectedListingId(court.id)}
+                  />
                 ))}
               </div>
             ) : null}
@@ -238,7 +253,11 @@ export function CourtDiscovery() {
             {viewMode === "list" ? (
               <div className="space-y-4">
                 {courtListings.map((court) => (
-                  <LocationCard key={court.id} {...listingCardProps(court)} />
+                  <LocationCard
+                    key={court.id}
+                    {...listingCardProps(court)}
+                    onOpen={() => setSelectedListingId(court.id)}
+                  />
                 ))}
               </div>
             ) : null}
@@ -257,6 +276,8 @@ export function CourtDiscovery() {
           </div>
         </div>
       </div>
+
+      <CourtListingModal court={selectedCourt} onClose={() => setSelectedListingId(null)} />
     </>
   );
 }

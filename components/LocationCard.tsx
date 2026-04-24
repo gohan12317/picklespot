@@ -18,7 +18,21 @@ import type { CourtListing } from "@/data/courtListings";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Badge } from "./ui/badge";
 
-type LocationCardProps = Omit<CourtListing, "id" | "type">;
+type LocationCardProps = Omit<
+  CourtListing,
+  | "id"
+  | "type"
+  | "images"
+  | "street"
+  | "city"
+  | "province"
+  | "fullAddress"
+  | "openingHours"
+  | "courtType"
+  | "mapsUrl"
+> & {
+  onOpen?: () => void;
+};
 
 const amenityIcons: Record<string, ComponentType<{ className?: string }>> = {
   lighting: Sun,
@@ -32,7 +46,7 @@ const amenityIcons: Record<string, ComponentType<{ className?: string }>> = {
 };
 
 export function LocationCard({
-  name,
+  courtName,
   address,
   distance,
   rating,
@@ -44,15 +58,19 @@ export function LocationCard({
   hours,
   image,
   amenities,
+  onOpen,
 }: LocationCardProps) {
   const showRating = rating != null && !Number.isNaN(rating);
 
-  return (
-    <article className="group cursor-pointer overflow-hidden rounded-lg border border-gray-200 bg-white transition-shadow hover:shadow-lg">
+  const shellClassName =
+    "group overflow-hidden rounded-lg border border-gray-200 bg-white transition-shadow hover:shadow-lg";
+
+  const inner = (
+    <>
       <div className="relative h-48 overflow-hidden">
         <ImageWithFallback
           src={image}
-          alt={name}
+          alt={courtName}
           className="object-cover transition-transform duration-300 group-hover:scale-105"
         />
         <div className="absolute top-3 right-3 max-w-[min(55%,11rem)]">
@@ -78,7 +96,7 @@ export function LocationCard({
       <div className="p-4">
         <div className="mb-2">
           <h3 className="mb-1 font-semibold text-gray-900 transition-colors group-hover:text-blue-600">
-            {name}
+            {courtName}
           </h3>
           {showRating ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -132,6 +150,20 @@ export function LocationCard({
           </div>
         ) : null}
       </div>
-    </article>
+    </>
   );
+
+  if (onOpen) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        className={`${shellClassName} block w-full cursor-pointer text-left outline-none ring-blue-500/30 focus-visible:ring-2`}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return <article className={shellClassName}>{inner}</article>;
 }
