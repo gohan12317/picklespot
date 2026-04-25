@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Filter, LayoutGrid, List, Map, SlidersHorizontal } from "lucide-react";
 
 import type { CourtListing } from "@/data/courtListings";
-import { courtListings } from "@/data/courtListings";
 import { CourtListingModal } from "./CourtListingModal";
 import { FilterSidebar } from "./FilterSidebar";
 import { LocationCard } from "./LocationCard";
@@ -40,29 +39,33 @@ function listingCardProps(court: CourtListing) {
 
 const LG_QUERY = "(min-width: 1024px)";
 
-export function CourtDiscovery() {
+function subscribeMinWidthLg(onStoreChange: () => void) {
+  const mq = window.matchMedia(LG_QUERY);
+  mq.addEventListener("change", onStoreChange);
+  return () => mq.removeEventListener("change", onStoreChange);
+}
+
+function getMinWidthLgSnapshot() {
+  return window.matchMedia(LG_QUERY).matches;
+}
+
+function getMinWidthLgServerSnapshot() {
+  return false;
+}
+
+type CourtDiscoveryProps = {
+  courtListings: CourtListing[];
+};
+
+export function CourtDiscovery({ courtListings }: CourtDiscoveryProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [desktopFiltersVisible, setDesktopFiltersVisible] = useState(true);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
-  const [isLg, setIsLg] = useState<boolean | null>(null);
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
+  const isLg = useSyncExternalStore(subscribeMinWidthLg, getMinWidthLgSnapshot, getMinWidthLgServerSnapshot);
 
   useEffect(() => {
-    const mq = window.matchMedia(LG_QUERY);
-    const sync = () => {
-      const next = mq.matches;
-      setIsLg(next);
-      if (next) {
-        setMobileSheetOpen(false);
-      }
-    };
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-
-  useEffect(() => {
-    if (!mobileSheetOpen || isLg === true) {
+    if (!mobileSheetOpen || isLg) {
       return;
     }
     const prev = document.body.style.overflow;
@@ -79,8 +82,8 @@ export function CourtDiscovery() {
     };
   }, [mobileSheetOpen, isLg]);
 
-  const showDesktopSidebar = isLg === true && desktopFiltersVisible;
-  const showMobileSheet = isLg !== true && mobileSheetOpen;
+  const showDesktopSidebar = isLg && desktopFiltersVisible;
+  const showMobileSheet = !isLg && mobileSheetOpen;
 
   const selectedCourt = selectedListingId
     ? (courtListings.find((c) => c.id === selectedListingId) ?? null)
@@ -100,7 +103,7 @@ export function CourtDiscovery() {
               <button
                 type="button"
                 onClick={() => {
-                  if (typeof window !== "undefined" && window.matchMedia(LG_QUERY).matches) {
+                  if (isLg) {
                     setDesktopFiltersVisible(true);
                   } else {
                     setMobileSheetOpen(true);
@@ -109,8 +112,8 @@ export function CourtDiscovery() {
                 className={`flex h-10 items-center gap-2 rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 ${
                   desktopFiltersVisible ? "lg:hidden" : ""
                 }`}
-                aria-expanded={isLg === true ? undefined : mobileSheetOpen || undefined}
-                aria-haspopup={isLg === true ? undefined : "dialog"}
+                aria-expanded={isLg ? undefined : mobileSheetOpen || undefined}
+                aria-haspopup={isLg ? undefined : "dialog"}
                 aria-controls={showMobileSheet ? "court-filters-sheet" : undefined}
                 aria-label="Open filters"
               >

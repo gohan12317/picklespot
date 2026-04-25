@@ -11,8 +11,19 @@ type ImageWithFallbackProps = {
   className?: string;
 };
 
+function useNextImageOptimizer(src: string): boolean {
+  if (src.startsWith("/")) return true;
+  try {
+    const host = new URL(src).hostname;
+    return host === "picsum.photos";
+  } catch {
+    return false;
+  }
+}
+
 export function ImageWithFallback({ src, alt, className }: ImageWithFallbackProps) {
   const [failed, setFailed] = useState(false);
+  const optimized = useNextImageOptimizer(src);
 
   if (failed) {
     return (
@@ -24,6 +35,22 @@ export function ImageWithFallback({ src, alt, className }: ImageWithFallbackProp
       >
         Image unavailable
       </div>
+    );
+  }
+
+  if (!optimized) {
+    /* next/image requires every remote host in config; DB URLs are arbitrary HTTPS. */
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- user-supplied court photo URLs
+      <img
+        src={src}
+        alt={alt}
+        className={cn("absolute inset-0 h-full w-full", className)}
+        loading="lazy"
+        decoding="async"
+        referrerPolicy="strict-origin-when-cross-origin"
+        onError={() => setFailed(true)}
+      />
     );
   }
 

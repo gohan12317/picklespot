@@ -1,7 +1,7 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -271,34 +271,43 @@ type CourtListingModalProps = {
   onClose: () => void;
 };
 
-function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mq.matches);
-    const fn = () => setReduced(mq.matches);
-    mq.addEventListener("change", fn);
-    return () => mq.removeEventListener("change", fn);
-  }, []);
-  return reduced;
+function subscribePrefersReducedMotion(onStoreChange: () => void) {
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", onStoreChange);
+  return () => mq.removeEventListener("change", onStoreChange);
 }
 
-export function CourtListingModal({ court, onClose }: CourtListingModalProps) {
+function getPrefersReducedMotionSnapshot() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function getPrefersReducedMotionServerSnapshot() {
+  return false;
+}
+
+function usePrefersReducedMotion(): boolean {
+  return useSyncExternalStore(
+    subscribePrefersReducedMotion,
+    getPrefersReducedMotionSnapshot,
+    getPrefersReducedMotionServerSnapshot,
+  );
+}
+
+type CourtListingModalInnerProps = {
+  court: CourtListing;
+  onClose: () => void;
+  reducedMotion: boolean;
+};
+
+function CourtListingModalInner({ court, onClose, reducedMotion }: CourtListingModalInnerProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const [slide, setSlide] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const reducedMotion = usePrefersReducedMotion();
 
-  const images = court?.images?.length ? court.images : court ? [court.image] : [];
-
-  useEffect(() => {
-    setSlide(0);
-    setLightboxOpen(false);
-  }, [court?.id]);
+  const images = court.images?.length ? court.images : [court.image];
 
   useEffect(() => {
-    if (!court) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const n = images.length;
@@ -326,9 +335,7 @@ export function CourtListingModal({ court, onClose }: CourtListingModalProps) {
       document.body.style.overflow = prev;
       window.removeEventListener("keydown", onKey);
     };
-  }, [court, onClose, images.length, lightboxOpen]);
-
-  if (!court) return null;
+  }, [court.id, onClose, images.length, lightboxOpen]);
 
   const showRating = court.rating != null && !Number.isNaN(court.rating);
   const mapsHref = mapsSearchUrl(court);
@@ -573,5 +580,18 @@ export function CourtListingModal({ court, onClose }: CourtListingModalProps) {
         />
       ) : null}
     </>
+  );
+}
+
+export function CourtListingModal({ court, onClose }: CourtListingModalProps) {
+  const reducedMotion = usePrefersReducedMotion();
+  if (!court) return null;
+  return (
+    <CourtListingModalInner
+      key={court.id}
+      court={court}
+      onClose={onClose}
+      reducedMotion={reducedMotion}
+    />
   );
 }

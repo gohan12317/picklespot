@@ -1,4 +1,4 @@
-import raw from "../../lokalpikol_directory.json";
+import raw from "./lokalpikol_directory.json";
 
 export type CourtType = "indoor" | "outdoor" | "both";
 
@@ -40,54 +40,54 @@ export type CourtListing = {
   socialMediaLinks: SocialMediaLink[];
 };
 
-type LokalpikolDirectory = {
-  scraped_at: string;
-  expected_total_from_directory: number;
-  total_listings: number;
-  courts: Array<{
-    id: string;
-    court_name: string;
-    location: string;
-    city: string;
-    address: string;
-    google_maps_link: string | null;
-    hours_display: string;
-    court_details: string;
-    number_of_courts: number;
-    email: string | null;
-    phone: string | null;
-    book_court_url: string | null;
-    social_media_links?: SocialMediaLink[];
-    street?: string | null;
-    province?: string | null;
-    full_address?: string | null;
-    court_type?: string | null;
-  }>;
+export type LokalpikolCourt = {
+  id: string;
+  court_name: string;
+  location: string;
+  city: string;
+  address: string;
+  google_maps_link: string | null;
+  hours_display: string;
+  court_details: string;
+  number_of_courts: number;
+  email: string | null;
+  phone: string | null;
+  book_court_url: string | null;
+  social_media_links?: SocialMediaLink[];
+  street?: string | null;
+  province?: string | null;
+  full_address?: string | null;
+  court_type?: string | null;
+  logo?: string | null;
+  photos?: string[];
 };
 
-const directory = raw as LokalpikolDirectory;
+function normalizeDirectory(raw: unknown): { courts: LokalpikolCourt[] } {
+  if (Array.isArray(raw)) {
+    return {
+      courts: (raw as Array<Record<string, unknown>>).map((row) => {
+        const { _directory, ...c } = row;
+        void _directory;
+        return c as LokalpikolCourt;
+      }),
+    };
+  }
+  const o = raw as { courts?: LokalpikolCourt[] };
+  return { courts: o.courts ?? [] };
+}
 
-const IMG = (id: string) =>
-  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1200&q=80`;
-
-const COURT_GALLERY_POOL = [
-  IMG("photo-1693142517898-2f986215e412"),
-  IMG("photo-1626224583764-f87db24fe4b6"),
-  IMG("photo-1554068864-3887f870e9a0"),
-  IMG("photo-1521412644187-c49fa049e84d"),
-  IMG("photo-1595435934249-043344853a57"),
-  IMG("photo-1616530940355-351fabd9524b"),
-] as const;
+const directory = normalizeDirectory(raw);
 
 function galleryForCourtId(id: string): string[] {
-  const pool = [...COURT_GALLERY_POOL];
+  // Deterministic seed from the court id so the same court always shows the same placeholder images
   let h = 0;
   for (let i = 0; i < id.length; i++) {
     h = (h * 31 + id.charCodeAt(i)) >>> 0;
   }
-  const r = h % pool.length;
-  const rotated = [...pool.slice(r), ...pool.slice(0, r)];
-  return rotated.slice(0, 5);
+  // Generate 3 distinct seeds
+  return [h % 1000, (h * 7) % 1000, (h * 13) % 1000].map(
+    (seed) => `https://picsum.photos/seed/${seed}/1200/800`,
+  );
 }
 
 function truncate(s: string, max: number): string {
@@ -109,9 +109,7 @@ export function mapCourtType(details: string): { type: CourtType; typeLabel: str
   return { type: "outdoor", typeLabel: label };
 }
 
-function listingFromCourt(
-  c: LokalpikolDirectory["courts"][number],
-): CourtListing {
+export function listingFromCourt(c: LokalpikolCourt): CourtListing {
   const { type, typeLabel } = mapCourtType(c.court_details || "Outdoor");
   const amenities: string[] = [];
   if (c.phone) amenities.push("phone");
@@ -126,7 +124,31 @@ function listingFromCourt(
     .filter((l) => l.url.length > 0);
   if (socialMediaLinks.length) amenities.push("social");
 
-  const images = galleryForCourtId(c.id);
+  const fromPhotos = (c.photos ?? []).filter((u) => {
+    if (typeof u !== "string" || !u.trim()) return false;
+    try {
+      const parsed = new URL(u.trim());
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  });
+  const logoUrl = (() => {
+    if (typeof c.logo !== "string" || !c.logo.trim()) return null;
+    try {
+      const p = new URL(c.logo.trim());
+      return p.protocol === "http:" || p.protocol === "https:" ? c.logo.trim() : null;
+    } catch {
+      return null;
+    }
+  })();
+  const images = (() => {
+    const photos = fromPhotos.length > 0 ? fromPhotos : galleryForCourtId(c.id);
+    if (!logoUrl) return photos;
+    // Logo first, then photos (skip logo if it also appears in the photos array)
+    const rest = photos.filter((u) => u !== logoUrl);
+    return [logoUrl, ...rest];
+  })();
 
   const street = c.street?.trim() || null;
   const city = (c.city || "").trim() || "—";
@@ -158,7 +180,7 @@ function listingFromCourt(
     type,
     typeLabel,
     hours: c.hours_display ? `Open ${c.hours_display}` : "Hours not listed",
-    image: images[0]!,
+    image: logoUrl ?? images[0]!,
     images,
     amenities,
     cost: null,
