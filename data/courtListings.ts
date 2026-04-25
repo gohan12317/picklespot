@@ -2,6 +2,11 @@ import raw from "../../lokalpikol_directory.json";
 
 export type CourtType = "indoor" | "outdoor" | "both";
 
+export type SocialMediaLink = {
+  platform: string;
+  url: string;
+};
+
 export type CourtListing = {
   id: string;
   courtName: string;
@@ -32,6 +37,7 @@ export type CourtListing = {
   email?: string | null;
   mapsUrl?: string | null;
   bookCourtUrl?: string | null;
+  socialMediaLinks: SocialMediaLink[];
 };
 
 type LokalpikolDirectory = {
@@ -51,6 +57,7 @@ type LokalpikolDirectory = {
     email: string | null;
     phone: string | null;
     book_court_url: string | null;
+    social_media_links?: SocialMediaLink[];
     street?: string | null;
     province?: string | null;
     full_address?: string | null;
@@ -111,6 +118,13 @@ function listingFromCourt(
   if (c.email) amenities.push("email");
   if (c.google_maps_link) amenities.push("maps");
   if (c.book_court_url) amenities.push("book");
+  const socialMediaLinks: SocialMediaLink[] = (c.social_media_links ?? [])
+    .map((l) => ({
+      platform: String(l?.platform ?? "Link").trim() || "Link",
+      url: String(l?.url ?? "").trim(),
+    }))
+    .filter((l) => l.url.length > 0);
+  if (socialMediaLinks.length) amenities.push("social");
 
   const images = galleryForCourtId(c.id);
 
@@ -153,6 +167,7 @@ function listingFromCourt(
     email: c.email,
     mapsUrl: c.google_maps_link,
     bookCourtUrl: c.book_court_url,
+    socialMediaLinks,
   };
 }
 

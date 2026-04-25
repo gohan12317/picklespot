@@ -8,6 +8,7 @@ import {
   MapPin,
   MapPinned,
   Phone,
+  Share2,
   Star,
   Sun,
   Users,
@@ -16,6 +17,7 @@ import {
 
 import type { CourtListing } from "@/data/courtListings";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { SocialMediaChips } from "./SocialMediaChips";
 import { Badge } from "./ui/badge";
 
 type LocationCardProps = Omit<
@@ -43,6 +45,7 @@ const amenityIcons: Record<string, ComponentType<{ className?: string }>> = {
   email: Mail,
   maps: MapPinned,
   book: ExternalLink,
+  social: Share2,
 };
 
 export function LocationCard({
@@ -58,6 +61,7 @@ export function LocationCard({
   hours,
   image,
   amenities,
+  socialMediaLinks,
   onOpen,
 }: LocationCardProps) {
   const showRating = rating != null && !Number.isNaN(rating);
@@ -133,6 +137,12 @@ export function LocationCard({
           <span className="text-sm text-gray-600">{hours}</span>
         </div>
 
+        {socialMediaLinks && socialMediaLinks.length > 0 ? (
+          <div className="mb-3">
+            <SocialMediaChips links={socialMediaLinks} />
+          </div>
+        ) : null}
+
         {amenities.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2">
             {amenities.map((amenity) => {
@@ -155,13 +165,25 @@ export function LocationCard({
 
   if (onOpen) {
     return (
-      <button
-        type="button"
-        onClick={onOpen}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={`Open details for ${courtName}`}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("a")) return;
+          onOpen();
+        }}
+        onKeyDown={(e) => {
+          if ((e.target as HTMLElement).closest("a")) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onOpen();
+          }
+        }}
         className={`${shellClassName} block w-full cursor-pointer text-left outline-none ring-blue-500/30 focus-visible:ring-2`}
       >
         {inner}
-      </button>
+      </div>
     );
   }
 

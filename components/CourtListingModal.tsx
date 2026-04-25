@@ -20,6 +20,7 @@ import {
 
 import type { CourtListing } from "@/data/courtListings";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { SocialMediaChips } from "./SocialMediaChips";
 import { Badge } from "./ui/badge";
 
 function mapsSearchUrl(court: CourtListing): string {
@@ -187,7 +188,7 @@ function ModalGallery({
 
   return (
     <div
-      className="relative isolate flex min-h-0 min-w-0 flex-1 flex-col bg-gradient-to-b from-gray-900 to-gray-950"
+      className="relative isolate flex h-full min-h-0 min-w-0 flex-col bg-gradient-to-b from-gray-900 to-gray-950"
       role="region"
       aria-roledescription="carousel"
       aria-labelledby={labelId}
@@ -196,7 +197,7 @@ function ModalGallery({
         Photo gallery for {courtName}, {n} images
       </p>
 
-      <div className="relative w-full flex-1 basis-0 min-h-[168px] overflow-hidden sm:min-h-[200px]">
+      <div className="relative w-full flex-1 basis-0 min-h-0 overflow-hidden">
         <div
           className={`group relative flex h-full w-full ${reducedMotion ? "" : "transition-transform duration-500 ease-out motion-reduce:transition-none"}`}
           style={{
@@ -372,31 +373,34 @@ export function CourtListingModal({ court, onClose }: CourtListingModalProps) {
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-3" role="presentation">
+      <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4" role="presentation">
         <button
           type="button"
-          className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px] transition-opacity"
+          className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
           aria-label="Close"
           onClick={onClose}
         />
+
+        {/* Close button — floats outside the card, top-right of viewport */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-2 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-lg ring-1 ring-black/[0.08] backdrop-blur-sm transition hover:bg-white active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+          aria-label="Close"
+        >
+          <X className="h-5 w-5" strokeWidth={2} aria-hidden />
+        </button>
+
         <div
           ref={panelRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
           tabIndex={-1}
-          className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-[1.5rem] bg-slate-100 shadow-[0_25px_80px_-16px_rgba(15,23,42,0.35)] ring-1 ring-slate-200/80 sm:max-h-[min(90svh,820px)] sm:rounded-[1.5rem]"
+          className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-[0_-4px_32px_-4px_rgba(15,23,42,0.18),0_24px_64px_-8px_rgba(15,23,42,0.28)] sm:max-h-[min(90svh,820px)] sm:rounded-[2rem]"
         >
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-md ring-1 ring-black/[0.06] transition hover:bg-white active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 sm:right-4"
-            aria-label="Close details"
-          >
-            <X className="h-5 w-5" strokeWidth={1.75} aria-hidden />
-          </button>
-
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100">
+          {/* ── Gallery — grows to fill space above info ─────────── */}
+          <div className="relative min-h-[80px] flex-1">
             <ModalGallery
               images={images}
               courtName={court.courtName}
@@ -406,171 +410,155 @@ export function CourtListingModal({ court, onClose }: CourtListingModalProps) {
               onSlideChange={setSlide}
               onOpenLightbox={() => setLightboxOpen(true)}
             />
+          </div>
 
-            <div className="shrink-0 overflow-hidden bg-slate-100 px-3 pb-3 pt-2 sm:px-4 sm:pb-3 sm:pt-2.5">
-              <div className="mt-1.5 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 shadow-md ring-1 ring-slate-900/[0.04] sm:mt-2 sm:p-4">
-                <div className="border-b border-slate-100/90 pb-3 pt-1">
-                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Court</p>
-                  <h2
-                    id={titleId}
-                    className="line-clamp-2 pr-14 text-xl font-extrabold leading-[1.2] tracking-tight text-slate-900 sm:pr-16 sm:text-2xl sm:leading-[1.15]"
-                  >
-                    {court.courtName}
-                  </h2>
-                  {showRating ? (
-                    <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-950 ring-1 ring-amber-200/60">
-                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-600" strokeWidth={1.75} aria-hidden />
-                      <span className="font-semibold tabular-nums">{court.rating}</span>
-                      {court.reviews != null ? <span className="text-amber-800/80">· {court.reviews} reviews</span> : null}
-                    </div>
-                  ) : null}
+          {/* ── Info body — fixed size, no scroll ────────────────── */}
+          <div className="shrink-0 overflow-hidden">
+
+            {/* Court name + rating */}
+            <div className="px-4 pb-0 pt-4">
+              <div className="min-w-0">
+                <h2
+                  id={titleId}
+                  className="line-clamp-2 text-[1.15rem] font-extrabold leading-tight tracking-tight text-slate-950 antialiased"
+                >
+                  {court.courtName}
+                </h2>
+                {showRating ? (
+                  <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] text-amber-950 ring-1 ring-amber-200/70">
+                    <Star className="h-3 w-3 fill-amber-400 text-amber-500" strokeWidth={2} aria-hidden />
+                    <span className="font-bold tabular-nums">{court.rating}</span>
+                    {court.reviews != null ? <span className="text-amber-700/80">· {court.reviews} reviews</span> : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mx-4 mt-3 h-px bg-slate-100" />
+
+            {/* Address */}
+            <div className="flex items-start gap-3 px-4 py-2.5">
+              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600" aria-hidden>
+                <MapPin className="h-[13px] w-[13px]" strokeWidth={2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                {hasStreet ? <p className="line-clamp-1 text-[13px] font-semibold leading-snug text-slate-800">{court.street}</p> : null}
+                {cityLine ? <p className="text-[11px] font-medium text-slate-500">{cityLine}</p> : null}
+                <p className="mt-0.5 line-clamp-2 text-[13px] leading-relaxed text-slate-600">{court.fullAddress}</p>
+              </div>
+            </div>
+
+            {/* Social */}
+            {court.socialMediaLinks.length > 0 ? (
+              <>
+                <div className="mx-4 h-px bg-slate-100" />
+                <div className="px-4 py-2.5">
+                  <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">Social</p>
+                  <SocialMediaChips links={court.socialMediaLinks} />
                 </div>
+              </>
+            ) : null}
 
-                <div className="flex gap-3 border-b border-slate-100/90 py-3.5">
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100/80"
-                    aria-hidden
-                  >
-                    <MapPin className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            <div className="mx-4 h-px bg-slate-100" />
+
+            {/* Hours + Courts */}
+            <div className="grid grid-cols-2 gap-2.5 px-4 py-2.5">
+              <div className="rounded-2xl bg-slate-50 p-2.5">
+                <div className="mb-1.5 flex items-center gap-1.5">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-violet-100 text-violet-600">
+                    <Clock className="h-3 w-3" strokeWidth={2} aria-hidden />
                   </div>
-                  <div className="min-w-0 flex-1 pt-0.5">
-                    {hasStreet ? (
-                      <p className="line-clamp-2 text-sm font-semibold leading-snug text-slate-800">{court.street}</p>
-                    ) : null}
-                    {cityLine ? <p className="mt-1 text-xs font-medium text-slate-500">{cityLine}</p> : null}
-                    <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-slate-600">
-                      {court.fullAddress}
-                    </p>
-                  </div>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">Hours</p>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3 border-b border-slate-100/90 py-3.5">
-                  <div className="flex min-w-0 gap-2.5">
-                    <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 ring-1 ring-slate-200/80"
-                      aria-hidden
-                    >
-                      <Clock className="h-[18px] w-[18px]" strokeWidth={1.75} />
-                    </div>
-                    <div className="min-w-0 pt-0.5">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Hours</p>
-                      <p className="mt-1 line-clamp-3 text-sm font-medium leading-snug text-slate-900">
-                        {court.openingHours}
-                      </p>
-                    </div>
+                <p className="line-clamp-2 text-xs font-medium leading-relaxed text-slate-800">{court.openingHours}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-2.5">
+                <div className="mb-1.5 flex items-center gap-1.5">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-teal-100 text-teal-600">
+                    <Layers className="h-3 w-3" strokeWidth={2} aria-hidden />
                   </div>
-                  <div className="flex min-w-0 gap-2.5 border-l border-slate-100 pl-3 sm:pl-3.5">
-                    <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 ring-1 ring-slate-200/80"
-                      aria-hidden
-                    >
-                      <Layers className="h-[18px] w-[18px]" strokeWidth={1.75} />
-                    </div>
-                    <div className="min-w-0 pt-0.5">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Courts</p>
-                      <p className="mt-1 text-2xl font-bold tabular-nums leading-none tracking-tight text-slate-900 sm:text-[1.65rem]">
-                        {court.courts}
-                      </p>
-                      <p className="mt-1 line-clamp-2 text-xs font-medium leading-snug text-slate-600">{court.courtType}</p>
-                    </div>
-                  </div>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">Courts</p>
                 </div>
+                <p className="text-xl font-extrabold tabular-nums leading-none text-slate-900">{court.courts}</p>
+                <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">{court.courtType}</p>
+              </div>
+            </div>
 
-                <div className="grid shrink-0 grid-cols-2 gap-2 pt-3">
+            {/* Phone + Email — only rendered when at least one exists */}
+            {(court.phone?.trim() || court.email?.trim()) ? (
+              <>
+                <div className="mx-4 h-px bg-slate-100" />
+                <div
+                  className={`grid gap-2.5 px-4 py-2.5 pb-3 ${
+                    court.phone?.trim() && court.email?.trim() ? "grid-cols-2" : "grid-cols-1"
+                  }`}
+                >
                   {court.phone?.trim() ? (
                     <a
                       href={telHref(court.phone)}
-                      className="flex min-h-[4.5rem] flex-col gap-1.5 rounded-xl border border-slate-200/90 bg-slate-50/80 p-2.5 text-slate-900 transition hover:border-blue-200/80 hover:bg-blue-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/35 active:scale-[0.99]"
+                      className="rounded-2xl bg-slate-50 p-2.5 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 active:scale-[0.98]"
                     >
-                      <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-blue-600 shadow-sm ring-1 ring-slate-200/80">
-                          <Phone className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-                        </span>
-                        Phone
-                      </span>
-                      <span className="min-w-0 break-words pl-0.5 font-mono text-sm font-medium leading-snug text-slate-900">{court.phone}</span>
+                      <div className="mb-1.5 flex items-center gap-1.5">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 text-emerald-600">
+                          <Phone className="h-3 w-3" strokeWidth={2} aria-hidden />
+                        </div>
+                        <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">Phone</p>
+                      </div>
+                      <p className="line-clamp-1 break-all font-mono text-xs font-semibold text-slate-900">{court.phone}</p>
                     </a>
-                  ) : (
-                    <div className="flex min-h-[4.5rem] flex-col gap-1.5 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-2.5 text-sm text-slate-400">
-                      <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white ring-1 ring-slate-200/80">
-                          <Phone className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-                        </span>
-                        Phone
-                      </span>
-                      <span className="pl-0.5">None on file</span>
-                    </div>
-                  )}
+                  ) : null}
                   {court.email?.trim() ? (
                     <a
                       href={`mailto:${court.email}`}
-                      className="flex min-h-[4.5rem] flex-col gap-1.5 rounded-xl border border-slate-200/90 bg-slate-50/80 p-2.5 text-slate-900 transition hover:border-blue-200/80 hover:bg-blue-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/35 active:scale-[0.99]"
+                      className="rounded-2xl bg-slate-50 p-2.5 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/35 active:scale-[0.98]"
                     >
-                      <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-blue-600 shadow-sm ring-1 ring-slate-200/80">
-                          <Mail className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-                        </span>
-                        Email
-                      </span>
-                      <span className="min-w-0 break-words pl-0.5 text-left text-sm font-medium leading-snug text-slate-900">{court.email}</span>
+                      <div className="mb-1.5 flex items-center gap-1.5">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 text-blue-600">
+                          <Mail className="h-3 w-3" strokeWidth={2} aria-hidden />
+                        </div>
+                        <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">Email</p>
+                      </div>
+                      <p className="line-clamp-1 break-all text-xs font-semibold text-slate-900">{court.email}</p>
                     </a>
-                  ) : (
-                    <div className="flex min-h-[4.5rem] flex-col gap-1.5 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-2.5 text-sm text-slate-400">
-                      <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white ring-1 ring-slate-200/80">
-                          <Mail className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-                        </span>
-                        Email
-                      </span>
-                      <span className="pl-0.5">None on file</span>
-                    </div>
-                  )}
+                  ) : null}
                 </div>
-              </div>
-            </div>
+              </>
+            ) : <div className="pb-2" />}
+          </div>
 
-            <div className="shrink-0 space-y-2.5 border-t border-slate-200/70 bg-slate-100 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
+          {/* ── Action bar ───────────────────────────────────────── */}
+          <div className="shrink-0 space-y-2 border-t border-slate-100 bg-white/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
+            <a
+              href={mapsHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-bold text-white shadow-md shadow-blue-600/20 transition hover:from-blue-500 hover:to-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 active:scale-[0.99]"
+            >
+              <MapPinned className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+              Get directions
+              <ExternalLink className="h-3.5 w-3.5 opacity-80" strokeWidth={2} aria-hidden />
+            </a>
+
+            {court.bookCourtUrl ? (
               <a
-                href={mapsHref}
+                href={court.bookCourtUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-h-[3rem] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md shadow-blue-600/25 transition hover:from-blue-500 hover:to-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 active:scale-[0.99]"
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 active:scale-[0.99]"
               >
-                <MapPinned className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} aria-hidden />
-                Get directions
-                <ExternalLink className="h-4 w-4 opacity-90" strokeWidth={1.75} aria-hidden />
+                Book
+                <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
               </a>
+            ) : null}
 
-              {court.bookCourtUrl ? (
-                <a
-                  href={court.bookCourtUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex min-h-[3rem] w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/60 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900 shadow-sm transition hover:bg-emerald-100/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 active:scale-[0.99]"
-                >
-                  Book
-                  <ExternalLink className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-                </a>
-              ) : null}
-
-              <div className="flex gap-2 pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => void share()}
-                  className="inline-flex min-h-[2.75rem] flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200/90 bg-white py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 active:scale-[0.99]"
-                >
-                  <Share2 className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-                  Share
-                </button>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="min-h-[2.75rem] rounded-xl border border-transparent px-4 text-sm font-semibold text-slate-600 transition hover:bg-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 active:scale-[0.99]"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => void share()}
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 active:scale-[0.99]"
+            >
+              <Share2 className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+              Share
+            </button>
           </div>
         </div>
       </div>
